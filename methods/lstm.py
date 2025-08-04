@@ -389,5 +389,17 @@ def main():
             print(f"  {cls}: {prob:.4f}")
 
 
+# TODO refactor code to be more modular and unit test friendly
+def demo():
+    # move the tests_texts here
+    test_texts = [
+        "I feel anxious and can't sleep properly",
+        "Life is wonderful and I'm enjoying every moment",
+        "I don't see any point in continuing anymore",
+        "Work pressure is getting too much for me",
+    ]
+    print("TODO: Implement demo function")
+
+
 if __name__ == "__main__":
     main()

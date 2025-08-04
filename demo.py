@@ -1,6 +1,5 @@
-from setup import setup
+import methods.lstm as lstm
 
-setup()
 
 # For the demo, we'll probably want to save our trained models and just load them in here.
 
@@ -13,6 +12,7 @@ setup()
 
 # We can print out the results of each method here.
 
+lstm.demo()
 
 # Method 1
 
