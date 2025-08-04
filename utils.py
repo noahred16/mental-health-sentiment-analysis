@@ -60,3 +60,7 @@ def load_data():
     df = df[df["processed_text"].str.strip() != ""]
 
     return df
+
+# TODO: we should all use the same train/test split
+def get_test_train_split():
+    return 'TODO'
