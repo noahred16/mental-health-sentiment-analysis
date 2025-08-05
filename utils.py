@@ -2,6 +2,8 @@ import kagglehub
 import pandas as pd
 import re
 import os
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
 
 FILE_PATH = "data/mental_health_sentiment_analysis.csv"
 
@@ -18,7 +20,7 @@ def setup():
     df = pd.read_csv(file_path)
 
     # Print first 5 rows
-    print(df.head())
+    # print(df.head())
 
     if os.path.exists(FILE_PATH):
         return
@@ -61,6 +63,47 @@ def load_data():
 
     return df
 
-# TODO: we should all use the same train/test split
-def get_test_train_split():
-    return 'TODO'
+
+def get_train_test_split(df, test_size=0.2, random_state=42):
+    """Get consistent train/test split for the dataset"""
+
+    DEBUG = True  # Comment out for full dataset usage
+    if DEBUG:
+        SAMPLE_FRACTION = 0.0025  # Use fraction of the data for quick testing
+        print(f"\nDEBUG Sampling {SAMPLE_FRACTION*100}% of data for faster testing...")
+        df = df.groupby("status", group_keys=False).apply(
+            lambda x: x.sample(frac=SAMPLE_FRACTION, random_state=42)
+        )
+
+    return train_test_split(
+        df["processed_text"].values,
+        df["status"].values,
+        test_size=test_size,
+        random_state=random_state,
+        stratify=df["status"].values,
+    )
+
+
+def describe_data(df):
+    """Print basic statistics of the dataset"""
+    print("Dataset shape:", df.shape)
+    print("Columns:", df.columns.tolist())
+    print("First 5 rows:")
+    print(df.head())
+    print("\nClass distribution:")
+    print(df["status"].value_counts())
+
+    # pie chart distribution of the status column
+    # counts = df["status"].value_counts()
+    # counts.plot(kind="pie", autopct=lambda pct: f'{pct:.1f}%\n({int(pct/100*len(df)):,})', figsize=(10, 8), textprops={'fontsize': 9}, pctdistance=0.85)
+    # plt.title("Class Distribution")
+    # plt.ylabel("")  # Hide the y-label
+    # # save to metrics
+    # plt.savefig("metrics/class_distribution.png", bbox_inches='tight')
+    # plt.close()
+
+    # get total number of unique words in the dataset
+    # unique_words = set()
+    # for text in df["processed_text"]:
+    #     unique_words.update(text.split())
+    # print("Total unique words in the dataset:", len(unique_words))

@@ -6,7 +6,6 @@ from torch.nn.utils.rnn import pad_sequence
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report, confusion_matrix
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -26,11 +25,21 @@ np.random.seed(42)
 
 # Vocabulary builder
 class Vocabulary:
-    def __init__(self, max_vocab_size=10000):
+    def __init__(self, max_vocab_size):
         self.word2idx = {"<PAD>": 0, "<UNK>": 1}
         self.idx2word = {0: "<PAD>", 1: "<UNK>"}
         self.word_freq = Counter()
         self.max_vocab_size = max_vocab_size
+        # Hardcoded label encoder mapping
+        self.label_encoder = {
+            "Anxiety": 0,
+            "Bipolar": 1,
+            "Depression": 2,
+            "Normal": 3,
+            "Personality disorder": 4,
+            "Stress": 5,
+            "Suicidal": 6,
+        }
 
     def build_vocab(self, texts):
         """Build vocabulary from texts"""
@@ -69,6 +78,7 @@ class MentalHealthDataset(Dataset):
     def __len__(self):
         return len(self.texts)
 
+    # using a class to represent the data allows for easy conversion to tensors!
     def __getitem__(self, idx):
         text = self.texts[idx]
         label = self.labels[idx]
@@ -93,6 +103,11 @@ def collate_fn(batch):
 
 
 # LSTM Model
+# TODO Try Different Architecture Configurations
+# larger vocabulary size
+# maybe try attention mechanism
+# self.attention = nn.Linear(hidden_dim * 2, 1)
+# toggle bidirectional
 class SentimentLSTM(nn.Module):
     def __init__(
         self,
@@ -105,6 +120,7 @@ class SentimentLSTM(nn.Module):
     ):
         super(SentimentLSTM, self).__init__()
 
+        # embedding layer ignores padding tokens
         self.embedding = nn.Embedding(vocab_size, embedding_dim, padding_idx=0)
         # Only use dropout in LSTM if num_layers > 1
         lstm_dropout = dropout if num_layers > 1 else 0
@@ -191,39 +207,47 @@ def evaluate(model, dataloader, criterion, device):
     return total_loss / len(dataloader), correct / total, all_predictions, all_labels
 
 
-# Main execution
-def main():
+def load_model(model_path="saved_models/lstm_model.pth"):
+    """Load model and vocabulary from checkpoint"""
+    checkpoint = torch.load(model_path, weights_only=False)
+    vocab = checkpoint["vocab"]
+    params = checkpoint["model_params"]
+
+    model = SentimentLSTM(
+        vocab_size=params["vocab_size"],
+        embedding_dim=params["embedding_dim"],
+        hidden_dim=params["hidden_dim"],
+        num_layers=params["num_layers"],
+        num_classes=params["num_classes"],
+        dropout=params["dropout"],
+    ).to(device)
+
+    model.load_state_dict(checkpoint["model_state_dict"])
+    return model, vocab
+
+
+def train(
+    max_vocab_size=10000,
+    embedding_dim=200,  # Restored to 200
+    hidden_dim=256,  # Restored to 256
+    num_layers=2,  # Restored to 2 layers
+    dropout=0.5,
+    model_name="regular",
+    model_path="saved_models/lstm_model.pth",
+):
     # Load data
     df = utils.load_data()
 
-    # TEMP Sample the data for faster testing (use 1% of data)
-    SAMPLE_FRACTION = 0.0025  # Change this to 1.0 for full dataset
-    if SAMPLE_FRACTION < 1.0:
-        print(f"\nSampling {SAMPLE_FRACTION*100}% of data for faster testing...")
-        # Stratified sampling to maintain class distribution
-        df = df.groupby("status", group_keys=False).apply(
-            lambda x: x.sample(frac=SAMPLE_FRACTION, random_state=42)
-        )
-        print(f"Working with {len(df)} samples")
-        print(f"Sampled class distribution:\n{df['status'].value_counts()}")
-
-    # Encode labels
-    label_encoder = LabelEncoder()
-    df["status"] = label_encoder.fit_transform(df["status"])
+    # Build vocabulary
+    vocab = Vocabulary(max_vocab_size)
+    df["status"] = df["status"].map(vocab.label_encoder)
 
     # Split data
-    X_train, X_test, y_train, y_test = train_test_split(
-        df["processed_text"].values,
-        df["status"].values,
-        test_size=0.2,
-        random_state=42,
-        stratify=df["status"].values,
-    )
+    X_train, X_test, y_train, y_test = utils.get_train_test_split(df)
 
-    print(f"Train size: {len(X_train)}, Test size: {len(X_test)}")
+    # print(f"Train size: {len(X_train)}, Test size: {len(X_test)}")
 
-    # Build vocabulary
-    vocab = Vocabulary(max_vocab_size=10000)  # Restored to 10000 for better coverage
+    # Vocab built only from training set
     vocab.build_vocab(X_train)
 
     # Create datasets
@@ -241,11 +265,7 @@ def main():
 
     # Model parameters
     vocab_size = len(vocab.word2idx)
-    embedding_dim = 200  # Restored to 200
-    hidden_dim = 256  # Restored to 256
-    num_layers = 2  # Restored to 2 layers
-    num_classes = len(label_encoder.classes_)
-    dropout = 0.5
+    num_classes = len(vocab.label_encoder)
 
     # Initialize model
     model = SentimentLSTM(
@@ -292,43 +312,22 @@ def main():
         # Save best model
         if test_acc > best_test_acc:
             best_test_acc = test_acc
-            torch.save(model.state_dict(), "saved_models/lstm_model.pth")
+            torch.save(
+                {
+                    "model_state_dict": model.state_dict(),
+                    "vocab": vocab,
+                    "model_params": {
+                        "vocab_size": vocab_size,
+                        "embedding_dim": embedding_dim,
+                        "hidden_dim": hidden_dim,
+                        "num_layers": num_layers,
+                        "num_classes": num_classes,
+                        "dropout": dropout,
+                    },
+                },
+                model_path,
+            )
             print("Saved best model!")
-
-    # Load best model for final evaluation
-    model.load_state_dict(torch.load("saved_models/lstm_model.pth"))
-
-    # Final evaluation
-    print("\nFinal evaluation on test set:")
-    _, test_acc, predictions, true_labels = evaluate(
-        model, test_loader, criterion, device
-    )
-
-    # Classification report
-    print("\nClassification Report:")
-    print(
-        classification_report(
-            true_labels, predictions, target_names=label_encoder.classes_
-        )
-    )
-
-    # Confusion matrix
-    cm = confusion_matrix(true_labels, predictions)
-    plt.figure(figsize=(10, 8))
-    sns.heatmap(
-        cm,
-        annot=True,
-        fmt="d",
-        cmap="Blues",
-        xticklabels=label_encoder.classes_,
-        yticklabels=label_encoder.classes_,
-    )
-    plt.title("Confusion Matrix")
-    plt.xlabel("Predicted")
-    plt.ylabel("Actual")
-    plt.tight_layout()
-    plt.savefig("metrics/lstm_confusion_matrix.png")
-    plt.show()
 
     # Plot training history
     plt.figure(figsize=(12, 4))
@@ -350,28 +349,83 @@ def main():
     plt.legend()
 
     plt.tight_layout()
-    plt.savefig("metrics/lstm_training_history.png")
-    plt.show()
+    plt.savefig("metrics/lstm_training_history_" + model_name + ".png")
+    plt.close()
 
-    print(f"\nBest Test Accuracy: {best_test_acc:.4f}")
+    print(f"\nBest Test Accuracy from training: {best_test_acc:.4f}")
 
-    # Example prediction function
-    def predict_sentiment(text, model, vocab, label_encoder):
-        model.eval()
-        processed_text = utils.preprocess_text(text)
-        indices = vocab.text_to_indices(processed_text)
-        indices_tensor = torch.tensor([indices]).to(device)
 
-        with torch.no_grad():
-            output = model(indices_tensor)
-            _, predicted = torch.max(output, 1)
+def evaluate_model(model_path):
+    """Evaluate saved model on test set"""
+    model, vocab = load_model(model_path)
 
-        prediction = label_encoder.inverse_transform(predicted.cpu().numpy())[0]
-        probabilities = torch.softmax(output, dim=1).cpu().numpy()[0]
+    # Recreate test data
+    df = utils.load_data()
+    df["status"] = df["status"].map(vocab.label_encoder)
 
-        return prediction, probabilities
+    X_train, X_test, y_train, y_test = utils.get_train_test_split(df)
 
-    # Test with some examples
+    test_dataset = MentalHealthDataset(X_test, y_test, vocab)
+    test_loader = DataLoader(
+        test_dataset, batch_size=8, shuffle=False, collate_fn=collate_fn
+    )
+    criterion = nn.CrossEntropyLoss()
+
+    _, test_acc, predictions, true_labels = evaluate(
+        model, test_loader, criterion, device
+    )
+
+    status_labels = list(vocab.label_encoder.keys())
+
+    # Classification report
+    print("\nClassification Report:")
+    print(classification_report(true_labels, predictions, target_names=status_labels))
+
+    # Confusion matrix
+    cm = confusion_matrix(true_labels, predictions)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt="d",
+        cmap="Blues",
+        xticklabels=status_labels,
+        yticklabels=status_labels,
+    )
+    plt.title("Confusion Matrix")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.tight_layout()
+    plt.savefig("metrics/lstm_test_confusion_matrix.png")
+    plt.close()
+
+    print(f"\nTest Accuracy from evaluate_model: {test_acc:.4f}")
+    print("Confusion matrix saved to metrics/lstm_test_confusion_matrix.png")
+
+    return model, vocab
+
+
+def predict_sentiment(text, model, vocab):
+    model.eval()
+    processed_text = utils.preprocess_text(text)
+    indices = vocab.text_to_indices(processed_text)
+    indices_tensor = torch.tensor([indices]).to(device)
+
+    with torch.no_grad():
+        output = model(indices_tensor)
+        _, predicted = torch.max(output, 1)
+
+    idx_to_class = {v: k for k, v in vocab.label_encoder.items()}
+    prediction = idx_to_class[predicted.cpu().numpy()[0]]
+    probabilities = torch.softmax(output, dim=1).cpu().numpy()[0]
+
+    return prediction, probabilities
+
+
+def demo():
+    """Demo function using saved model"""
+    model, vocab = load_model()
+
     test_texts = [
         "I feel anxious and can't sleep properly",
         "Life is wonderful and I'm enjoying every moment",
@@ -379,27 +433,49 @@ def main():
         "Work pressure is getting too much for me",
     ]
 
-    print("\nExample predictions:")
+    print("Demo predictions:")
     for text in test_texts:
-        prediction, probs = predict_sentiment(text, model, vocab, label_encoder)
+        prediction, probs = predict_sentiment(text, model, vocab)
         print(f"\nText: '{text}'")
         print(f"Predicted: {prediction}")
         print("Probabilities:")
-        for cls, prob in zip(label_encoder.classes_, probs):
+        for cls, prob in zip(vocab.label_encoder.keys(), probs):
             print(f"  {cls}: {prob:.4f}")
 
 
-# TODO refactor code to be more modular and unit test friendly
-def demo():
-    # move the tests_texts here
-    test_texts = [
-        "I feel anxious and can't sleep properly",
-        "Life is wonderful and I'm enjoying every moment",
-        "I don't see any point in continuing anymore",
-        "Work pressure is getting too much for me",
-    ]
-    print("TODO: Implement demo function")
-
-
 if __name__ == "__main__":
-    main()
+    cases = [
+        # {
+        #     'max_vocab_size': 10000,
+        #     'embedding_dim': 200,
+        #     'hidden_dim': 256,
+        #     'num_layers': 2,
+        #     'dropout': 0.5,
+        #     'model_name': "regular",
+        #     'model_path': "saved_models/lstm_model_regular.pth"
+        # },
+        {
+            "max_vocab_size": 5000,
+            "embedding_dim": 100,
+            "hidden_dim": 128,
+            "num_layers": 1,
+            "dropout": 0.3,
+            "model_name": "small",
+            "model_path": "saved_models/lstm_model_small.pth",
+        }
+    ]
+
+    # Train first
+    for case in cases:
+        print(f"\nTraining model with params: {case}")
+        train(**case)  # dictionary unpacking, neat
+
+    # Load and evaluate the model
+    for case in cases:
+        print(f"\n{'='*60}")
+        print(f"Evaluating model with params: {case}")
+        print(f"{'='*60}")
+        model, vocab = load_model(case["model_path"])
+        evaluate_model(case["model_path"])
+
+    # demo()  # Run demo with the trained model
