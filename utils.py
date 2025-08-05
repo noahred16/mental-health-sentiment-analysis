@@ -67,12 +67,14 @@ def load_data():
 def get_train_test_split(df, test_size=0.2, random_state=42):
     """Get consistent train/test split for the dataset"""
 
-    DEBUG = True  # Comment out for full dataset usage
+    DEBUG = False
+    # DEBUG = True  # Comment out for full dataset usage
     if DEBUG:
         SAMPLE_FRACTION = 0.0025  # Use fraction of the data for quick testing
         print(f"\nDEBUG Sampling {SAMPLE_FRACTION*100}% of data for faster testing...")
         df = df.groupby("status", group_keys=False).apply(
-            lambda x: x.sample(frac=SAMPLE_FRACTION, random_state=42)
+            lambda x: x.sample(frac=SAMPLE_FRACTION, random_state=42),
+            include_groups=False,
         )
 
     return train_test_split(
@@ -87,11 +89,10 @@ def get_train_test_split(df, test_size=0.2, random_state=42):
 def describe_data(df):
     """Print basic statistics of the dataset"""
     print("Dataset shape:", df.shape)
-    print("Columns:", df.columns.tolist())
     print("First 5 rows:")
     print(df.head())
     print("\nClass distribution:")
-    print(df["status"].value_counts())
+    # print(df["status"].value_counts())
 
     # pie chart distribution of the status column
     # counts = df["status"].value_counts()
@@ -107,3 +108,17 @@ def describe_data(df):
     # for text in df["processed_text"]:
     #     unique_words.update(text.split())
     # print("Total unique words in the dataset:", len(unique_words))
+
+    # what are the top 10 most common words for each category
+    # from collections import Counter
+    # stop_words = {'i', 'and', 'to', 'the', 'a', 'my', 'of', 'it', 'that', 'im', 'is', 'in', 'me', 'have', 'for', 'with', 'on', 'am', 'so', 'but', 'not', 'be', 'can', 'like', 'feel', 'just', 'dont', 'get', 'was', 'are'}
+    # print("\nTop 10 most common words for each category (excluding stop words):")
+    # for category in df["status"].unique():
+    #     category_texts = df[df["status"] == category]["processed_text"]
+    #     all_words = []
+    #     for text in category_texts:
+    #         all_words.extend([word for word in text.split() if word not in stop_words])
+    #     word_counts = Counter(all_words)
+    #     print(f"\n{category}:")
+    #     for word, count in word_counts.most_common(10):
+    #         print(f"  {word}: {count}")

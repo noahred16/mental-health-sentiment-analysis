@@ -13,8 +13,8 @@ import utils
 # We can print out the results of each method here.
 
 # Describe the data
-# data = utils.load_data()
-# utils.describe_data(data)
+data = utils.load_data()
+utils.describe_data(data)
 
 # Method 1
 lstm.demo()

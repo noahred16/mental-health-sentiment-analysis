@@ -1,3 +1,7 @@
+import warnings
+
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="networkx")
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -117,6 +121,7 @@ class SentimentLSTM(nn.Module):
         num_layers,
         num_classes,
         dropout=0.5,
+        bidirectional=True,
     ):
         super(SentimentLSTM, self).__init__()
 
@@ -130,7 +135,7 @@ class SentimentLSTM(nn.Module):
             num_layers,
             batch_first=True,
             dropout=lstm_dropout,
-            bidirectional=True,
+            bidirectional=bidirectional,
         )
         self.dropout = nn.Dropout(dropout)
         self.fc = nn.Linear(hidden_dim * 2, num_classes)  # *2 for bidirectional
@@ -209,6 +214,11 @@ def evaluate(model, dataloader, criterion, device):
 
 def load_model(model_path="saved_models/lstm_model.pth"):
     """Load model and vocabulary from checkpoint"""
+    import sys
+
+    # Add current module to sys.modules to handle pickle loading
+    sys.modules["__main__"] = sys.modules[__name__]
+
     checkpoint = torch.load(model_path, weights_only=False)
     vocab = checkpoint["vocab"]
     params = checkpoint["model_params"]
@@ -234,6 +244,7 @@ def train(
     dropout=0.5,
     model_name="regular",
     model_path="saved_models/lstm_model.pth",
+    bidirectional=True,
 ):
     # Load data
     df = utils.load_data()
@@ -245,8 +256,6 @@ def train(
     # Split data
     X_train, X_test, y_train, y_test = utils.get_train_test_split(df)
 
-    # print(f"Train size: {len(X_train)}, Test size: {len(X_test)}")
-
     # Vocab built only from training set
     vocab.build_vocab(X_train)
 
@@ -255,7 +264,7 @@ def train(
     test_dataset = MentalHealthDataset(X_test, y_test, vocab)
 
     # Create dataloaders
-    batch_size = 8  # Restored to 64 for better GPU utilization
+    batch_size = 64  # Restored to 64 for better GPU utilization
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn
     )
@@ -269,7 +278,13 @@ def train(
 
     # Initialize model
     model = SentimentLSTM(
-        vocab_size, embedding_dim, hidden_dim, num_layers, num_classes, dropout
+        vocab_size,
+        embedding_dim,
+        hidden_dim,
+        num_layers,
+        num_classes,
+        dropout,
+        bidirectional,
     ).to(device)
 
     # Loss and optimizer
@@ -278,7 +293,7 @@ def train(
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", patience=3)
 
     # Training loop
-    num_epochs = 1  # Temp 1 for debugging, Restore to 20 epochs for better convergence
+    num_epochs = 10  # Reset to 20 epochs for better convergence
     train_losses = []
     test_losses = []
     train_accs = []
@@ -349,13 +364,13 @@ def train(
     plt.legend()
 
     plt.tight_layout()
-    plt.savefig("metrics/lstm_training_history_" + model_name + ".png")
+    plt.savefig("metrics/lstm/lstm_training_history_" + model_name + ".png")
     plt.close()
 
     print(f"\nBest Test Accuracy from training: {best_test_acc:.4f}")
 
 
-def evaluate_model(model_path):
+def evaluate_model(model_path, model_name="lstm"):
     """Evaluate saved model on test set"""
     model, vocab = load_model(model_path)
 
@@ -378,8 +393,13 @@ def evaluate_model(model_path):
     status_labels = list(vocab.label_encoder.keys())
 
     # Classification report
+    report = classification_report(true_labels, predictions, target_names=status_labels)
     print("\nClassification Report:")
-    print(classification_report(true_labels, predictions, target_names=status_labels))
+    print(report)
+
+    # Save classification report to file
+    with open(f"metrics/lstm/lstm_classification_report_{model_name}.txt", "w") as f:
+        f.write(report)
 
     # Confusion matrix
     cm = confusion_matrix(true_labels, predictions)
@@ -396,11 +416,11 @@ def evaluate_model(model_path):
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()
-    plt.savefig("metrics/lstm_test_confusion_matrix.png")
+    plt.savefig("metrics/lstm/lstm_test_confusion_matrix.png")
     plt.close()
 
     print(f"\nTest Accuracy from evaluate_model: {test_acc:.4f}")
-    print("Confusion matrix saved to metrics/lstm_test_confusion_matrix.png")
+    print("Confusion matrix saved to metrics/lstm/lstm_test_confusion_matrix.png")
 
     return model, vocab
 
@@ -427,10 +447,10 @@ def demo():
     model, vocab = load_model()
 
     test_texts = [
-        "I feel anxious and can't sleep properly",
-        "Life is wonderful and I'm enjoying every moment",
-        "I don't see any point in continuing anymore",
-        "Work pressure is getting too much for me",
+        "I feel restless",  # anxiety
+        "Beautiful morning",  # normal
+        "I did not ask to be born",  # depression
+        "This exam is stressing me out",  # stress
     ]
 
     print("Demo predictions:")
@@ -445,23 +465,15 @@ def demo():
 
 if __name__ == "__main__":
     cases = [
-        # {
-        #     'max_vocab_size': 10000,
-        #     'embedding_dim': 200,
-        #     'hidden_dim': 256,
-        #     'num_layers': 2,
-        #     'dropout': 0.5,
-        #     'model_name': "regular",
-        #     'model_path': "saved_models/lstm_model_regular.pth"
-        # },
         {
-            "max_vocab_size": 5000,
-            "embedding_dim": 100,
-            "hidden_dim": 128,
-            "num_layers": 1,
-            "dropout": 0.3,
-            "model_name": "small",
-            "model_path": "saved_models/lstm_model_small.pth",
+            "max_vocab_size": 2000,
+            "embedding_dim": 200,
+            "hidden_dim": 256,
+            "num_layers": 2,
+            "dropout": 0.2,
+            "model_name": "lstm_model",
+            "model_path": "saved_models/lstm_model.pth",
+            "bidirectional": True,
         }
     ]
 
@@ -476,6 +488,6 @@ if __name__ == "__main__":
         print(f"Evaluating model with params: {case}")
         print(f"{'='*60}")
         model, vocab = load_model(case["model_path"])
-        evaluate_model(case["model_path"])
+        evaluate_model(case["model_path"], case["model_name"])
 
     # demo()  # Run demo with the trained model
