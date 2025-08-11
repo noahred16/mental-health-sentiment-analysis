@@ -7,15 +7,17 @@ import utils
 
 def test_preprocess_text_basic():
     cases = [
+        # lowercase and punctuation removal
         ("Hello World!", "hello world"),
-        ("  Multiple   spaces   ", "multiple spaces"),
-        ("1234 &*()@# Test", "1234 test"),
+        # "spaces" -> "space" after lemmatization
+        ("  Multiple   spaces   ", "multiple space"),
+        # keep alphanumeric, remove URLs and emails
+        ("1234 &*()@# hi https://Test.com", "1234 hi"),
         (None, ""),
         ("", ""),
-        ("Special characters !@#$%^&*()", "special characters"),
     ]
     for input_text, expected_output in cases:
-        assert utils.preprocess_text(input_text) == expected_output
+        assert utils.preprocessor.preprocess_text(input_text) == expected_output
 
 
 def test_load_data():
@@ -31,4 +33,4 @@ def test_load_data():
     first_row = data.iloc[0]
     assert first_row["statement"] == "oh my gosh"
     assert first_row["status"] == "Anxiety"
-    assert first_row["processed_text"] == "oh my gosh"
+    assert first_row["processed_text"] == "oh gosh"  # "my" is a stop word

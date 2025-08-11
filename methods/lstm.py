@@ -427,7 +427,7 @@ def evaluate_model(model_path, model_name="lstm"):
 
 def predict_sentiment(text, model, vocab):
     model.eval()
-    processed_text = utils.preprocess_text(text)
+    processed_text = utils.preprocessor.preprocess_text(text)
     indices = vocab.text_to_indices(processed_text)
     indices_tensor = torch.tensor([indices]).to(device)
 

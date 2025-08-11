@@ -5,7 +5,49 @@ import os
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
+import nltk
+
+nltk.download("stopwords")
+nltk.download("wordnet")
+
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+
 FILE_PATH = "data/mental_health_sentiment_analysis.csv"
+
+
+class TextPreprocessor:
+    def __init__(self):
+        self.stop_words = set(stopwords.words("english"))
+        self.lemmatizer = WordNetLemmatizer()
+
+    def preprocess_text(self, text):
+        """Basic text preprocessing"""
+        # Handle missing values
+        if pd.isna(text):
+            return ""
+
+        # Convert to string in case of other data types
+        text = str(text)
+
+        # Convert to lowercase
+        text = text.lower()
+
+        # Remove URLs/links and email addresses
+        text = re.sub(r"http\S+|www\S+|mailto:\S+", "", text)
+
+        # Removes punctuation and special characters.
+        text = re.sub(r"[^a-zA-Z0-9\s]", "", text)
+
+        # Remove stop words and lemmatize
+        tokens = text.split()
+        tokens = [word for word in tokens if word not in self.stop_words]
+        tokens = [self.lemmatizer.lemmatize(word) for word in tokens]
+        return " ".join(tokens)
+
+
+# Global preprocessor instance
+preprocessor = TextPreprocessor()
 
 
 # download the dataset from source anb copy to data directory
@@ -32,31 +74,16 @@ def setup():
     print("Dataset saved to:", FILE_PATH)
 
 
-def preprocess_text(text):
-    """Basic text preprocessing"""
-    # Handle missing values
-    if pd.isna(text):
-        return ""
-
-    # Convert to string in case of other data types
-    text = str(text)
-
-    # Convert to lowercase
-    text = text.lower()
-    # Remove special characters but keep spaces
-    text = re.sub(r"[^a-zA-Z0-9\s]", "", text)
-    # Remove extra whitespace
-    text = " ".join(text.split())
-    return text
-
-
 def load_data():
     setup()
     """Load and preprocess the dataset"""
     df = pd.read_csv(FILE_PATH)
 
+    # Drop unnecessary columns
+    df = df.drop(columns=["Unnamed: 0"])
+
     # Preprocess the text column
-    df["processed_text"] = df["statement"].apply(preprocess_text)
+    df["processed_text"] = df["statement"].apply(preprocessor.preprocess_text)
 
     # Drop rows with empty text
     df = df[df["processed_text"].str.strip() != ""]
@@ -84,6 +111,25 @@ def get_train_test_split(df, test_size=0.2, random_state=42):
         random_state=random_state,
         stratify=df["status"].values,
     )
+
+
+def get_train_val_test_split(df, val_size=0.1, test_size=0.1, random_state=42):
+    """Get consistent train/validation/test split for the dataset"""
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        df["processed_text"].values,
+        df["status"].values,
+        test_size=val_size + test_size,
+        random_state=random_state,
+        stratify=df["status"].values,
+    )
+    X_val, X_test, y_val, y_test = train_test_split(
+        X_temp,
+        y_temp,
+        test_size=test_size / (val_size + test_size),
+        random_state=random_state,
+        stratify=y_temp,
+    )
+    return X_train, X_val, X_test, y_train, y_val, y_test
 
 
 def describe_data(df):
