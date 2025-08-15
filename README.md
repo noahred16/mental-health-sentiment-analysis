@@ -6,6 +6,8 @@ Rajkesh Prakash Shetty
 Noah Smith  
 Deepashree Srinivasa Rao Rannore  
 
+![Demo Gif](demo.gif)
+
 ## Main Files
 ```
 .
@@ -30,7 +32,7 @@ Deepashree Srinivasa Rao Rannore
 ```
 
 
-### Setup
+## Setup
 1. Download/clone the repository
 2. Navigate to the project root directory, mental-health-sentiment-analysis
 3. Install dependencies: `pip install -r requirements.txt`

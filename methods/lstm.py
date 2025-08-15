@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import Counter
 import re
+import os
 from tqdm import tqdm
 import utils
 
@@ -246,6 +247,14 @@ def train(
     model_path="saved_models/lstm_model.pth",
     bidirectional=True,
 ):
+    # Check if checkpoint already exists
+    if os.path.exists(model_path):
+        print(f"Loading existing model from {model_path}")
+        model, vocab = load_model(model_path)
+        return model, vocab
+
+    print("Training new LSTM model...")
+    
     # Load data
     df = utils.load_data()
 
@@ -432,8 +441,13 @@ def evaluate_model(model_path, model_name="lstm"):
     print("\nTest Classification Report:")
     print(report)
 
-    # Save classification report to file
+    # Save classification report with accuracy to file
     with open(f"metrics/lstm/lstm_classification_report_{model_name}.txt", "w") as f:
+        f.write(f"LSTM Model Evaluation Results\n")
+        f.write(f"{'='*50}\n\n")
+        f.write(f"Validation Accuracy: {val_acc:.4f}\n")
+        f.write(f"Test Accuracy: {test_acc:.4f}\n\n")
+        f.write("Classification Report:\n")
         f.write(report)
 
     # Test confusion matrix
