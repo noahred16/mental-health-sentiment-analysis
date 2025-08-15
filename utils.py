@@ -138,6 +138,19 @@ def get_train_val_test_split(df, val_size=0.1, test_size=0.1, random_state=42):
     return X_train, X_val, X_test, y_train, y_val, y_test
 
 
+def get_standard_split(df, random_state=42):
+    """
+    Standardized 70/20/10 train/validation/test split for all models
+
+    Returns:
+        X_train, X_val, X_test, y_train, y_val, y_test
+        All using preprocessed_text for consistency across models
+    """
+    return get_train_val_test_split(
+        df, val_size=0.2, test_size=0.1, random_state=random_state
+    )
+
+
 def describe_data(df):
     """Print basic statistics of the dataset"""
     print("Dataset shape:", df.shape)

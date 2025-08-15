@@ -253,20 +253,24 @@ def train(
     vocab = Vocabulary(max_vocab_size)
     df["status"] = df["status"].map(vocab.label_encoder)
 
-    # Split data
-    X_train, X_test, y_train, y_test = utils.get_train_test_split(df)
+    # Split data using standardized 70/20/10 split
+    X_train, X_val, X_test, y_train, y_val, y_test = utils.get_standard_split(df)
 
     # Vocab built only from training set
     vocab.build_vocab(X_train)
 
     # Create datasets
     train_dataset = MentalHealthDataset(X_train, y_train, vocab)
+    val_dataset = MentalHealthDataset(X_val, y_val, vocab)
     test_dataset = MentalHealthDataset(X_test, y_test, vocab)
 
     # Create dataloaders
     batch_size = 64  # Restored to 64 for better GPU utilization
     train_loader = DataLoader(
         train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn
+    )
+    val_loader = DataLoader(
+        val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn
     )
     test_loader = DataLoader(
         test_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn
@@ -295,12 +299,12 @@ def train(
     # Training loop
     num_epochs = 10  # Reset to 20 epochs for better convergence
     train_losses = []
-    test_losses = []
+    val_losses = []
     train_accs = []
-    test_accs = []
+    val_accs = []
 
     print("\nStarting training...")
-    best_test_acc = 0
+    best_val_acc = 0
 
     for epoch in range(num_epochs):
         print(f"\nEpoch {epoch+1}/{num_epochs}")
@@ -310,23 +314,23 @@ def train(
             model, train_loader, criterion, optimizer, device
         )
 
-        # Evaluate
-        test_loss, test_acc, _, _ = evaluate(model, test_loader, criterion, device)
+        # Evaluate on validation set
+        val_loss, val_acc, _, _ = evaluate(model, val_loader, criterion, device)
 
         # Scheduler step
-        scheduler.step(test_loss)
+        scheduler.step(val_loss)
 
         train_losses.append(train_loss)
-        test_losses.append(test_loss)
+        val_losses.append(val_loss)
         train_accs.append(train_acc)
-        test_accs.append(test_acc)
+        val_accs.append(val_acc)
 
         print(f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f}")
-        print(f"Test Loss: {test_loss:.4f}, Test Acc: {test_acc:.4f}")
+        print(f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
 
-        # Save best model
-        if test_acc > best_test_acc:
-            best_test_acc = test_acc
+        # Save best model based on validation accuracy
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
             torch.save(
                 {
                     "model_state_dict": model.state_dict(),
@@ -349,36 +353,36 @@ def train(
 
     plt.subplot(1, 2, 1)
     plt.plot(train_losses, label="Train Loss")
-    plt.plot(test_losses, label="Test Loss")
+    plt.plot(val_losses, label="Validation Loss")
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
-    plt.title("Training and Test Loss")
+    plt.title("Training and Validation Loss")
     plt.legend()
 
     plt.subplot(1, 2, 2)
     plt.plot(train_accs, label="Train Accuracy")
-    plt.plot(test_accs, label="Test Accuracy")
+    plt.plot(val_accs, label="Validation Accuracy")
     plt.xlabel("Epoch")
     plt.ylabel("Accuracy")
-    plt.title("Training and Test Accuracy")
+    plt.title("Training and Validation Accuracy")
     plt.legend()
 
     plt.tight_layout()
     plt.savefig("metrics/lstm/lstm_training_history_" + model_name + ".png")
     plt.close()
 
-    print(f"\nBest Test Accuracy from training: {best_test_acc:.4f}")
+    print(f"\nBest Validation Accuracy from training: {best_val_acc:.4f}")
 
 
 def evaluate_model(model_path, model_name="lstm"):
     """Evaluate saved model on test set"""
     model, vocab = load_model(model_path)
 
-    # Recreate test data
+    # Recreate test data using standardized split
     df = utils.load_data()
     df["status"] = df["status"].map(vocab.label_encoder)
 
-    X_train, X_test, y_train, y_test = utils.get_train_test_split(df)
+    X_train, X_val, X_test, y_train, y_val, y_test = utils.get_standard_split(df)
 
     test_dataset = MentalHealthDataset(X_test, y_test, vocab)
     test_loader = DataLoader(

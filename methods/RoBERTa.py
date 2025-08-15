@@ -74,17 +74,9 @@ def train_roberta_model(checkpoint_path="saved_models/roberta_model.pth"):
     label_encoder = LabelEncoder()
     df["label"] = label_encoder.fit_transform(df["status"])
 
-    # Data split (70% train, 20% val, 10% test)
-    train_texts, temp_texts, train_labels, temp_labels = train_test_split(
-        df["statement"],
-        df["label"],
-        stratify=df["label"],
-        test_size=0.30,
-        random_state=42,
-    )
-
-    val_texts, test_texts, val_labels, test_labels = train_test_split(
-        temp_texts, temp_labels, stratify=temp_labels, test_size=0.333, random_state=42
+    # Use standardized 70/20/10 split with preprocessed text for consistency
+    train_texts, val_texts, test_texts, train_labels, val_labels, test_labels = (
+        utils.get_standard_split(df)
     )
 
     print(
@@ -171,17 +163,9 @@ def evaluate_roberta_model(model, tokenizer, label_encoder):
     # Use same label encoding
     df["label"] = label_encoder.transform(df["status"])
 
-    # Same data split as training
-    train_texts, temp_texts, train_labels, temp_labels = train_test_split(
-        df["statement"],
-        df["label"],
-        stratify=df["label"],
-        test_size=0.30,
-        random_state=42,
-    )
-
-    val_texts, test_texts, val_labels, test_labels = train_test_split(
-        temp_texts, temp_labels, stratify=temp_labels, test_size=0.333, random_state=42
+    # Use same standardized split as training
+    train_texts, val_texts, test_texts, train_labels, val_labels, test_labels = (
+        utils.get_standard_split(df)
     )
 
     # Prepare test dataset

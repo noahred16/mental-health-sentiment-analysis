@@ -19,10 +19,8 @@ df["label"] = df["status"].astype("category").cat.codes
 label_mapping = dict(enumerate(df["status"].astype("category").cat.categories))
 # print("Label mapping:", label_mapping)
 
-# 80% train, 10% val, 10% test split
-X_train, X_val, X_test, y_train, y_val, y_test = utils.get_train_val_test_split(
-    df, val_size=0.1, test_size=0.1, random_state=42
-)
+# 70% train, 20% val, 10% test split (standardized across all models)
+X_train, X_val, X_test, y_train, y_val, y_test = utils.get_standard_split(df)
 
 
 def train_tfidf_model(X_train, y_train, checkpoint_path="saved_models/tfidf_model.pkl"):
