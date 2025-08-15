@@ -7,8 +7,16 @@ from sklearn.model_selection import train_test_split
 
 import nltk
 
-nltk.download("stopwords")
-nltk.download("wordnet")
+# Only download if not already present
+try:
+    nltk.data.find("corpora/stopwords")
+except LookupError:
+    nltk.download("stopwords", quiet=True)
+
+try:
+    nltk.data.find("corpora/wordnet")
+except LookupError:
+    nltk.download("wordnet", quiet=True)
 
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -53,6 +61,10 @@ preprocessor = TextPreprocessor()
 # download the dataset from source anb copy to data directory
 # https://www.kaggle.com/datasets/suchintikasarkar/sentiment-analysis-for-mental-health/data
 def setup():
+    # Check if file already exists first
+    if os.path.exists(FILE_PATH):
+        return
+
     dataset_path = kagglehub.dataset_download(
         "suchintikasarkar/sentiment-analysis-for-mental-health"
     )
@@ -60,12 +72,6 @@ def setup():
     # Access your file
     file_path = os.path.join(dataset_path, "Combined Data.csv")
     df = pd.read_csv(file_path)
-
-    # Print first 5 rows
-    # print(df.head())
-
-    if os.path.exists(FILE_PATH):
-        return
 
     # Copy dataset to the data directory
     os.makedirs("data", exist_ok=True)

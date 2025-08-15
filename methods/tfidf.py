@@ -8,6 +8,8 @@ from sklearn.pipeline import Pipeline
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import GridSearchCV
+import pickle
+import os
 
 # load preprocessed data
 df = utils.load_data()
@@ -15,7 +17,7 @@ df = utils.load_data()
 # encode labels as integers
 df["label"] = df["status"].astype("category").cat.codes
 label_mapping = dict(enumerate(df["status"].astype("category").cat.categories))
-print("Label mapping:", label_mapping)
+# print("Label mapping:", label_mapping)
 
 # 80% train, 10% val, 10% test split
 X_train, X_val, X_test, y_train, y_val, y_test = utils.get_train_val_test_split(
@@ -23,7 +25,15 @@ X_train, X_val, X_test, y_train, y_val, y_test = utils.get_train_val_test_split(
 )
 
 
-def train_tfidf_model(X_train, y_train):
+def train_tfidf_model(X_train, y_train, checkpoint_path="saved_models/tfidf_model.pkl"):
+    # Check if checkpoint already exists
+    if os.path.exists(checkpoint_path):
+        print(f"Loading existing model from {checkpoint_path}")
+        with open(checkpoint_path, "rb") as f:
+            checkpoint = pickle.load(f)
+        return checkpoint["model"], checkpoint["label_mapping"]
+
+    print("Training new TF-IDF model...")
     pipeline = Pipeline(
         [("tfidf", TfidfVectorizer()), ("clf", LogisticRegression(max_iter=1000))]
     )
@@ -41,10 +51,28 @@ def train_tfidf_model(X_train, y_train):
     )
     grid.fit(X_train, y_train)
 
-    return grid
+    # Create checkpoint directory if it doesn't exist
+    os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
+
+    # Save the trained model and label mapping
+    checkpoint = {
+        "model": grid,
+        "label_mapping": label_mapping,
+        "best_params": grid.best_params_,
+        "best_score": grid.best_score_,
+    }
+
+    with open(checkpoint_path, "wb") as f:
+        pickle.dump(checkpoint, f)
+
+    print(f"Model saved to {checkpoint_path}")
+    print(f"Best parameters: {grid.best_params_}")
+    print(f"Best cross-validation score: {grid.best_score_:.4f}")
+
+    return grid, label_mapping
 
 
-def evaluate(grid, X_val, y_val, X_test, y_test):
+def evaluate(grid, label_mapping, X_val, y_val, X_test, y_test):
     # Evaluation on validation set
     y_val_pred = grid.best_estimator_.predict(X_val)
     print(" Validation Set Performance:")
@@ -91,9 +119,52 @@ def evaluate(grid, X_val, y_val, X_test, y_test):
 
 
 def demo(test_texts=None):
-    return
+    """Demo function using saved TF-IDF model"""
+    try:
+        grid, label_mapping = load_model()
+    except FileNotFoundError:
+        print("No trained model found. Please run training first.")
+        return
+
+    # if not provided, use some default texts
+    if not test_texts:
+        test_texts = [
+            "I feel restless",  # anxiety
+            "Beautiful morning",  # normal
+            "I did not ask to be born",  # depression
+            "This exam is stressing me out",  # stress
+        ]
+
+    print("TF-IDF demo predictions:")
+    for text in test_texts:
+        # Preprocess the text using the same preprocessing as training data
+        processed_text = utils.preprocessor.preprocess_text(text)
+
+        # Get prediction and probabilities
+        prediction = grid.best_estimator_.predict([processed_text])[0]
+        probabilities = grid.best_estimator_.predict_proba([processed_text])[0]
+
+        # The prediction is already a string label, no need to convert
+        print(f"\nText: '{text}'")
+        print(f"Predicted: {prediction}")
+        print("Probabilities:")
+        # Get class names from the model
+        class_names = grid.best_estimator_.classes_
+        for class_name, prob in zip(class_names, probabilities):
+            print(f"  {class_name}: {prob:.4f}")
+
+
+def load_model(checkpoint_path="saved_models/tfidf_model.pkl"):
+    """Load trained TF-IDF model from checkpoint"""
+    if not os.path.exists(checkpoint_path):
+        raise FileNotFoundError(f"No model found at {checkpoint_path}")
+
+    with open(checkpoint_path, "rb") as f:
+        checkpoint = pickle.load(f)
+
+    return checkpoint["model"], checkpoint["label_mapping"]
 
 
 if __name__ == "__main__":
-    grid = train_tfidf_model(X_train, y_train)
-    evaluate(grid, X_val, y_val, X_test, y_test)
+    grid, label_mapping = train_tfidf_model(X_train, y_train)
+    evaluate(grid, label_mapping, X_val, y_val, X_test, y_test)

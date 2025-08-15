@@ -1,4 +1,5 @@
 import methods.lstm as lstm
+import methods.tfidf as tfidf
 import utils
 
 # For the demo, we'll probably want to save our trained models and just load them in here.
@@ -13,14 +14,23 @@ import utils
 # We can print out the results of each method here.
 
 # Describe the data
+
+print("=========================================================================")
+print("============================ Dataset Description ========================")
+print("=========================================================================")
 data = utils.load_data()
 utils.describe_data(data)
 
-# Method 1
+# Method 1: LSTM
+print("=========================================================================")
+print("=============================== LSTM Method =============================")
+print("=========================================================================")
 lstm.demo()
 
-
-# Method 2
-
+# Method 2: TF-IDF
+print("=========================================================================")
+print("============================== TF-IDF Method ============================")
+print("=========================================================================")
+tfidf.demo()
 
 # Method 3
