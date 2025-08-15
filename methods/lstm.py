@@ -254,7 +254,7 @@ def train(
         return model, vocab
 
     print("Training new LSTM model...")
-    
+
     # Load data
     df = utils.load_data()
 

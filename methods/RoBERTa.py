@@ -60,10 +60,10 @@ def train_roberta_model(checkpoint_path="saved_models/roberta_model.pth"):
 
     print("Training new RoBERTa model...")
 
-    # Load and preprocess data
-    df = utils.load_data()
+    # Load data without preprocessing to match notebook approach
+    df = utils.load_data(preprocess=False)
 
-    # Data filtering
+    # Data filtering (same as notebook)
     print(f"Dataset size before dropping missing items: {len(df)}")
     df = df.dropna(subset=["statement", "status"])
     df = df[~df["statement"].str.strip().eq("")]
@@ -74,12 +74,11 @@ def train_roberta_model(checkpoint_path="saved_models/roberta_model.pth"):
     label_encoder = LabelEncoder()
     df["label"] = label_encoder.fit_transform(df["status"])
 
-    # Use standardized 70/20/10 split with preprocessed text for consistency
-    # But we need to get the encoded labels, not the string labels
+    # Use same data split as notebook - raw statement text for consistency
     from sklearn.model_selection import train_test_split
 
     X_train, X_temp, y_train, y_temp = train_test_split(
-        df["processed_text"].values,
+        df["statement"].values,  # Use raw statement text like notebook
         df["label"].values,  # Use encoded labels
         test_size=0.3,  # 20% val + 10% test
         random_state=42,
@@ -119,7 +118,7 @@ def train_roberta_model(checkpoint_path="saved_models/roberta_model.pth"):
 
     # Setup training components
     optimizer = AdamW(model.parameters(), lr=2e-5)
-    number_epochs = 3
+    number_epochs = 4
     num_training_steps = number_epochs * len(train_loader)
     lr_scheduler = get_scheduler(
         "linear",
@@ -172,8 +171,10 @@ def train_roberta_model(checkpoint_path="saved_models/roberta_model.pth"):
 
 def evaluate_roberta_model(model, tokenizer, label_encoder):
     """Evaluate RoBERTa model on test data"""
-    # Reload data for evaluation
-    df = utils.load_data()
+    # Reload data the same way as training - without preprocessing
+    df = utils.load_data(preprocess=False)
+
+    # Data filtering (same as notebook and training)
     df = df.dropna(subset=["statement", "status"])
     df = df[~df["statement"].str.strip().eq("")]
     df = df[~df["status"].str.strip().eq("")]
@@ -181,9 +182,9 @@ def evaluate_roberta_model(model, tokenizer, label_encoder):
     # Use same label encoding
     df["label"] = label_encoder.transform(df["status"])
 
-    # Use same standardized split as training, but with encoded labels
+    # Use same split as training - raw statement text for consistency
     X_train, X_temp, y_train, y_temp = train_test_split(
-        df["processed_text"].values,
+        df["statement"].values,  # Use raw statement text like notebook
         df["label"].values,  # Use encoded labels
         test_size=0.3,
         random_state=42,
@@ -289,7 +290,9 @@ def load_model(checkpoint_path="saved_models/roberta_model.pth"):
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
 
     # Reload tokenizer from HuggingFace (not saved to reduce file size)
-    tokenizer = RobertaTokenizer.from_pretrained(checkpoint["model_config"]["model_name"])
+    tokenizer = RobertaTokenizer.from_pretrained(
+        checkpoint["model_config"]["model_name"]
+    )
     label_encoder = checkpoint["label_encoder"]
 
     # Reconstruct model

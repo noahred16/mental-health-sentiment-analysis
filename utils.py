@@ -80,19 +80,20 @@ def setup():
     print("Dataset saved to:", FILE_PATH)
 
 
-def load_data():
+def load_data(preprocess=True):
     setup()
-    """Load and preprocess the dataset"""
+    """Load and optionally preprocess the dataset"""
     df = pd.read_csv(FILE_PATH)
 
     # Drop unnecessary columns
     df = df.drop(columns=["Unnamed: 0"])
 
-    # Preprocess the text column
-    df["processed_text"] = df["statement"].apply(preprocessor.preprocess_text)
+    if preprocess:
+        # Preprocess the text column
+        df["processed_text"] = df["statement"].apply(preprocessor.preprocess_text)
 
-    # Drop rows with empty text
-    df = df[df["processed_text"].str.strip() != ""]
+        # Drop rows with empty text
+        df = df[df["processed_text"].str.strip() != ""]
 
     return df
 
