@@ -153,18 +153,18 @@ def train_roberta_model(checkpoint_path="saved_models/roberta_model.pth"):
             f"Epoch {epoch+1}/{number_epochs} - Loss: {total_loss/len(train_loader):.4f}"
         )
 
-    # Save model
+    # Save model (optimized for size)
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
     checkpoint = {
         "model_state_dict": model.state_dict(),
-        "tokenizer": tokenizer,
         "label_encoder": label_encoder,
         "model_config": {
             "num_labels": len(label_encoder.classes_),
             "model_name": "roberta-base",
         },
     }
-    torch.save(checkpoint, checkpoint_path)
+    # Save with compression to reduce file size
+    torch.save(checkpoint, checkpoint_path, _use_new_zipfile_serialization=True)
     print(f"Model saved to {checkpoint_path}")
 
     return model, tokenizer, label_encoder
@@ -264,8 +264,8 @@ def load_model(checkpoint_path="saved_models/roberta_model.pth"):
 
     checkpoint = torch.load(checkpoint_path, map_location=device)
 
-    # Load tokenizer and label encoder
-    tokenizer = checkpoint["tokenizer"]
+    # Reload tokenizer from HuggingFace (not saved to reduce file size)
+    tokenizer = RobertaTokenizer.from_pretrained(checkpoint["model_config"]["model_name"])
     label_encoder = checkpoint["label_encoder"]
 
     # Reconstruct model
