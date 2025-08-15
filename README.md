@@ -23,7 +23,7 @@ Rajkesh Prakash Shetty
 ├── saved_models
 │   ├── lstm_model.pkl
 │   ├── tfidf_model.pkl
-│   └── RoBERTa_model.pth
+│   └── roberta_model.pth
 ├── tests
 │   ├── test_methods.pkl
 │   └── test_utils.py
