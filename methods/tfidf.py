@@ -91,16 +91,52 @@ def evaluate(grid, label_mapping, X_val, y_val, X_test, y_test):
     )
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
-    plt.title("Confusion Matrix - Validation Set")
+    plt.title("TF-IDF Validation Confusion Matrix")
     plt.tight_layout()
-    # plt.show()
-    plt.savefig("metrics/tfidf_validation_confusion_matrix.png")
+    # Create metrics directory
+    os.makedirs("metrics/tfidf", exist_ok=True)
+    plt.savefig("metrics/tfidf/tfidf_validation_confusion_matrix.png")
+    plt.close()
 
+    # Test set evaluation
     best_model = grid.best_estimator_
     y_pred = best_model.predict(X_test)
+
+    # Generate and save classification report
+    report = classification_report(y_test, y_pred, target_names=label_mapping.values())
+    print("\nTest Classification Report:")
+    print(report)
+
+    # Save classification report to file
+    os.makedirs("metrics/tfidf", exist_ok=True)
+    with open("metrics/tfidf/tfidf_classification_report.txt", "w") as f:
+        f.write("TF-IDF Test Classification Report\n")
+        f.write("=" * 40 + "\n")
+        f.write(report)
+
+    # Test confusion matrix
+    cm_test = confusion_matrix(y_test, y_pred)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(
+        cm_test,
+        annot=True,
+        fmt="d",
+        cmap="Purples",
+        xticklabels=list(label_mapping.values()),
+        yticklabels=list(label_mapping.values()),
+    )
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.title("TF-IDF Test Confusion Matrix")
+    plt.tight_layout()
+    plt.savefig("metrics/tfidf/tfidf_test_confusion_matrix.png")
+    plt.close()
+
     print(
-        "\nClassification Report:\n",
-        classification_report(y_test, y_pred, target_names=label_mapping.values()),
+        "Classification report saved to metrics/tfidf/tfidf_classification_report.txt"
+    )
+    print(
+        "Test confusion matrix saved to metrics/tfidf/tfidf_test_confusion_matrix.png"
     )
 
 
@@ -124,7 +160,7 @@ def demo(test_texts=None, expected_labels=None):
         grid, label_mapping = load_model()
     except FileNotFoundError:
         return None
-    
+
     # if not provided, use some default texts with expected labels
     if not test_texts:
         test_texts = [
@@ -134,33 +170,37 @@ def demo(test_texts=None, expected_labels=None):
             "I have a so much work to do",  # stress
         ]
         expected_labels = ["Anxiety", "Normal", "Depression", "Stress"]
-    
+
     results = []
     for i, text in enumerate(test_texts):
         # Preprocess the text using the same preprocessing as training data
         processed_text = utils.preprocessor.preprocess_text(text)
-        
+
         # Get prediction and probabilities
         prediction = grid.best_estimator_.predict([processed_text])[0]
         probabilities = grid.best_estimator_.predict_proba([processed_text])[0]
-        
+
         # Get class names from the model and sort probabilities
         class_names = grid.best_estimator_.classes_
         prob_dict = dict(zip(class_names, probabilities))
         sorted_probs = sorted(prob_dict.items(), key=lambda x: x[1], reverse=True)
-        
+
         # Determine if prediction is correct
-        expected = expected_labels[i] if expected_labels and i < len(expected_labels) else None
+        expected = (
+            expected_labels[i] if expected_labels and i < len(expected_labels) else None
+        )
         is_correct = prediction == expected if expected else None
-        
-        results.append({
-            "text": text,
-            "prediction": prediction,
-            "expected": expected,
-            "correct": is_correct,
-            "probabilities": sorted_probs
-        })
-    
+
+        results.append(
+            {
+                "text": text,
+                "prediction": prediction,
+                "expected": expected,
+                "correct": is_correct,
+                "probabilities": sorted_probs,
+            }
+        )
+
     return results
 
 

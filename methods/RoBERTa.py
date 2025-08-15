@@ -57,23 +57,23 @@ def train_roberta_model(checkpoint_path="saved_models/roberta_model.pth"):
         print(f"Loading existing model from {checkpoint_path}")
         model, tokenizer, label_encoder = load_model(checkpoint_path)
         return model, tokenizer, label_encoder
-    
+
     print("Training new RoBERTa model...")
-    
+
     # Load and preprocess data
     df = utils.load_data()
-    
+
     # Data filtering
     print(f"Dataset size before dropping missing items: {len(df)}")
     df = df.dropna(subset=["statement", "status"])
     df = df[~df["statement"].str.strip().eq("")]
     df = df[~df["status"].str.strip().eq("")]
     print(f"Dataset size after dropping missing items: {len(df)}")
-    
+
     # Encoding labels
     label_encoder = LabelEncoder()
     df["label"] = label_encoder.fit_transform(df["status"])
-    
+
     # Data split (70% train, 20% val, 10% test)
     train_texts, temp_texts, train_labels, temp_labels = train_test_split(
         df["statement"],
@@ -82,29 +82,31 @@ def train_roberta_model(checkpoint_path="saved_models/roberta_model.pth"):
         test_size=0.30,
         random_state=42,
     )
-    
+
     val_texts, test_texts, val_labels, test_labels = train_test_split(
         temp_texts, temp_labels, stratify=temp_labels, test_size=0.333, random_state=42
     )
-    
-    print(f"Train size: {len(train_texts)}, Validation size: {len(val_texts)}, Test size: {len(test_texts)}")
-    
+
+    print(
+        f"Train size: {len(train_texts)}, Validation size: {len(val_texts)}, Test size: {len(test_texts)}"
+    )
+
     # Initialize tokenizer and model
     tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
     model = RobertaForSequenceClassification.from_pretrained(
         "roberta-base", num_labels=len(label_encoder.classes_)
     )
     model.to(device)
-    
+
     # Prepare datasets
     train_dataset = tokenize_data(train_texts, train_labels, tokenizer)
     val_dataset = tokenize_data(val_texts, val_labels, tokenizer)
     test_dataset = tokenize_data(test_texts, test_labels, tokenizer)
-    
+
     train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=16)
     test_loader = DataLoader(test_dataset, batch_size=16)
-    
+
     # Setup training components
     optimizer = AdamW(model.parameters(), lr=2e-5)
     number_epochs = 3
@@ -115,14 +117,14 @@ def train_roberta_model(checkpoint_path="saved_models/roberta_model.pth"):
         num_warmup_steps=0,
         num_training_steps=num_training_steps,
     )
-    
+
     # Class weights for balanced training
     class_weights = compute_class_weight(
         class_weight="balanced", classes=np.unique(train_labels), y=train_labels
     )
     class_weights = torch.tensor(class_weights, dtype=torch.float).to(device)
     loss_function = nn.CrossEntropyLoss(weight=class_weights)
-    
+
     # Training loop
     print("Starting training...")
     model.train()
@@ -137,8 +139,10 @@ def train_roberta_model(checkpoint_path="saved_models/roberta_model.pth"):
             optimizer.step()
             lr_scheduler.step()
             optimizer.zero_grad()
-        print(f"Epoch {epoch+1}/{number_epochs} - Loss: {total_loss/len(train_loader):.4f}")
-    
+        print(
+            f"Epoch {epoch+1}/{number_epochs} - Loss: {total_loss/len(train_loader):.4f}"
+        )
+
     # Save model
     os.makedirs(os.path.dirname(checkpoint_path), exist_ok=True)
     checkpoint = {
@@ -147,12 +151,12 @@ def train_roberta_model(checkpoint_path="saved_models/roberta_model.pth"):
         "label_encoder": label_encoder,
         "model_config": {
             "num_labels": len(label_encoder.classes_),
-            "model_name": "roberta-base"
-        }
+            "model_name": "roberta-base",
+        },
     }
     torch.save(checkpoint, checkpoint_path)
     print(f"Model saved to {checkpoint_path}")
-    
+
     return model, tokenizer, label_encoder
 
 
@@ -163,10 +167,10 @@ def evaluate_roberta_model(model, tokenizer, label_encoder):
     df = df.dropna(subset=["statement", "status"])
     df = df[~df["statement"].str.strip().eq("")]
     df = df[~df["status"].str.strip().eq("")]
-    
+
     # Use same label encoding
     df["label"] = label_encoder.transform(df["status"])
-    
+
     # Same data split as training
     train_texts, temp_texts, train_labels, temp_labels = train_test_split(
         df["statement"],
@@ -175,20 +179,20 @@ def evaluate_roberta_model(model, tokenizer, label_encoder):
         test_size=0.30,
         random_state=42,
     )
-    
+
     val_texts, test_texts, val_labels, test_labels = train_test_split(
         temp_texts, temp_labels, stratify=temp_labels, test_size=0.333, random_state=42
     )
-    
+
     # Prepare test dataset
     test_dataset = tokenize_data(test_texts, test_labels, tokenizer)
     test_loader = DataLoader(test_dataset, batch_size=16)
-    
+
     # Evaluation
     model.eval()
     all_preds = []
     all_labels = []
-    
+
     with torch.no_grad():
         for batch in test_loader:
             batch = {k: v.to(device) for k, v in batch.items()}
@@ -197,13 +201,21 @@ def evaluate_roberta_model(model, tokenizer, label_encoder):
             preds = torch.argmax(logits, dim=-1)
             all_preds.extend(preds.cpu().numpy())
             all_labels.extend(batch["labels"].cpu().numpy())
-    
-    # Print classification report
-    print("\nTest Classification Report:")
-    print(classification_report(
+
+    # Generate and save classification report
+    report = classification_report(
         all_labels, all_preds, target_names=label_encoder.classes_
-    ))
-    
+    )
+    print("\nTest Classification Report:")
+    print(report)
+
+    # Save classification report to file
+    os.makedirs("metrics/roberta", exist_ok=True)
+    with open("metrics/roberta/roberta_classification_report.txt", "w") as f:
+        f.write("RoBERTa Test Classification Report\n")
+        f.write("=" * 40 + "\n")
+        f.write(report)
+
     # Save confusion matrix
     cm = confusion_matrix(all_labels, all_preds)
     plt.figure(figsize=(10, 8))
@@ -219,52 +231,55 @@ def evaluate_roberta_model(model, tokenizer, label_encoder):
     plt.xlabel("Predicted")
     plt.ylabel("True")
     plt.tight_layout()
-    plt.savefig("metrics/roberta_test_confusion_matrix.png")
+    plt.savefig("metrics/roberta/roberta_test_confusion_matrix.png")
     plt.close()
-    
-    print("Confusion matrix saved to metrics/roberta_test_confusion_matrix.png")
+
+    print(
+        "Classification report saved to metrics/roberta/roberta_classification_report.txt"
+    )
+    print("Confusion matrix saved to metrics/roberta/roberta_test_confusion_matrix.png")
 
 
 def load_model(checkpoint_path="saved_models/roberta_model.pth"):
     """Load trained RoBERTa model from checkpoint"""
     if not os.path.exists(checkpoint_path):
         raise FileNotFoundError(f"No model found at {checkpoint_path}")
-    
+
     checkpoint = torch.load(checkpoint_path, map_location=device)
-    
+
     # Load tokenizer and label encoder
     tokenizer = checkpoint["tokenizer"]
     label_encoder = checkpoint["label_encoder"]
-    
+
     # Reconstruct model
     model = RobertaForSequenceClassification.from_pretrained(
-        checkpoint["model_config"]["model_name"], 
-        num_labels=checkpoint["model_config"]["num_labels"]
+        checkpoint["model_config"]["model_name"],
+        num_labels=checkpoint["model_config"]["num_labels"],
     )
     model.load_state_dict(checkpoint["model_state_dict"])
     model.to(device)
-    
+
     return model, tokenizer, label_encoder
 
 
 def predict_sentiment(text, model, tokenizer, label_encoder):
     """Predict sentiment for a single text"""
     model.eval()
-    
+
     # Tokenize input
     dummy_dataset = tokenize_data([text], [0], tokenizer)  # [0] = dummy label
     dummy_dataloader = DataLoader(dummy_dataset, batch_size=1)
-    
+
     with torch.no_grad():
         for batch in dummy_dataloader:
             batch = {k: v.to(device) for k, v in batch.items()}
             outputs = model(**batch)
             logits = outputs.logits
-            
+
             # Get prediction and probabilities
             pred_class = torch.argmax(logits, dim=1).item()
             probabilities = torch.softmax(logits, dim=1).cpu().numpy()[0]
-    
+
     predicted_label = label_encoder.classes_[pred_class]
     return predicted_label, probabilities
 
@@ -275,7 +290,7 @@ def demo(test_texts=None, expected_labels=None):
         model, tokenizer, label_encoder = load_model()
     except:
         return None
-    
+
     # if not provided, use some default texts with expected labels
     if not test_texts:
         test_texts = [
@@ -285,36 +300,40 @@ def demo(test_texts=None, expected_labels=None):
             "This exam is stressing me out",  # stress
         ]
         expected_labels = ["Anxiety", "Normal", "Depression", "Stress"]
-    
+
     results = []
     for i, text in enumerate(test_texts):
         prediction, probs = predict_sentiment(text, model, tokenizer, label_encoder)
-        
+
         # Create probability dictionary and sort by value
         prob_dict = dict(zip(label_encoder.classes_, probs))
         sorted_probs = sorted(prob_dict.items(), key=lambda x: x[1], reverse=True)
-        
+
         # Determine if prediction is correct
-        expected = expected_labels[i] if expected_labels and i < len(expected_labels) else None
+        expected = (
+            expected_labels[i] if expected_labels and i < len(expected_labels) else None
+        )
         is_correct = prediction == expected if expected else None
-        
-        results.append({
-            "text": text,
-            "prediction": prediction,
-            "expected": expected,
-            "correct": is_correct,
-            "probabilities": sorted_probs
-        })
-    
+
+        results.append(
+            {
+                "text": text,
+                "prediction": prediction,
+                "expected": expected,
+                "correct": is_correct,
+                "probabilities": sorted_probs,
+            }
+        )
+
     return results
 
 
 if __name__ == "__main__":
     # Train model
     model, tokenizer, label_encoder = train_roberta_model()
-    
+
     # Evaluate model
     evaluate_roberta_model(model, tokenizer, label_encoder)
-    
+
     # Run demo
     # demo()

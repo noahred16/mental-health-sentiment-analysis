@@ -462,23 +462,27 @@ def demo(test_texts=None, expected_labels=None):
     results = []
     for i, text in enumerate(test_texts):
         prediction, probs = predict_sentiment(text, model, vocab)
-        
+
         # Create probability dictionary and sort by value
         prob_dict = dict(zip(vocab.label_encoder.keys(), probs))
         sorted_probs = sorted(prob_dict.items(), key=lambda x: x[1], reverse=True)
-        
+
         # Determine if prediction is correct
-        expected = expected_labels[i] if expected_labels and i < len(expected_labels) else None
+        expected = (
+            expected_labels[i] if expected_labels and i < len(expected_labels) else None
+        )
         is_correct = prediction == expected if expected else None
-        
-        results.append({
-            "text": text,
-            "prediction": prediction,
-            "expected": expected,
-            "correct": is_correct,
-            "probabilities": sorted_probs
-        })
-    
+
+        results.append(
+            {
+                "text": text,
+                "prediction": prediction,
+                "expected": expected,
+                "correct": is_correct,
+                "probabilities": sorted_probs,
+            }
+        )
+
     return results
 
 
