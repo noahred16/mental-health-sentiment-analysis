@@ -40,3 +40,60 @@ def train_tfidf_model(X_train, y_train):
         pipeline, param_grid, cv=3, scoring="accuracy", verbose=2, n_jobs=-1
     )
     grid.fit(X_train, y_train)
+
+    return grid
+
+
+def evaluate(grid, X_val, y_val, X_test, y_test):
+    # Evaluation on validation set
+    y_val_pred = grid.best_estimator_.predict(X_val)
+    print(" Validation Set Performance:")
+    print(classification_report(y_val, y_val_pred, target_names=label_mapping.values()))
+
+    # Confusion matrix for validation
+    cm_val = confusion_matrix(y_val, y_val_pred)
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(
+        cm_val,
+        annot=True,
+        fmt="d",
+        cmap="Purples",
+        xticklabels=[label_mapping[i] for i in sorted(label_mapping.keys())],
+        yticklabels=[label_mapping[i] for i in sorted(label_mapping.keys())],
+    )
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.title("Confusion Matrix - Validation Set")
+    plt.tight_layout()
+    # plt.show()
+    plt.savefig("metrics/tfidf_validation_confusion_matrix.png")
+
+    best_model = grid.best_estimator_
+    y_pred = best_model.predict(X_test)
+    print(
+        "\nClassification Report:\n",
+        classification_report(y_test, y_pred, target_names=label_mapping.values()),
+    )
+
+
+# # Demo: Predict sentiment of a new statement
+# sample_text = "I feel so lost and disconnected from everyone around me."
+# cleaned_text = clean_text(sample_text)  # Use the same cleaning function
+# sample_tfidf = grid.best_estimator_.named_steps["tfidf"].transform([cleaned_text])
+# predicted_label = grid.best_estimator_.named_steps["clf"].predict(sample_tfidf)[0]
+
+# # Convert label back to string
+# label_name = label_mapping[predicted_label]
+# print(f" Input: {sample_text}")
+# print(f" Predicted Sentiment: {label_name}")
+
+# utils.preprocessor.preprocess_text
+
+
+def demo(test_texts=None):
+    return
+
+
+if __name__ == "__main__":
+    grid = train_tfidf_model(X_train, y_train)
+    evaluate(grid, X_val, y_val, X_test, y_test)

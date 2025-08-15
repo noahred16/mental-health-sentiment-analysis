@@ -442,18 +442,20 @@ def predict_sentiment(text, model, vocab):
     return prediction, probabilities
 
 
-def demo():
+def demo(test_texts=None):
     """Demo function using saved model"""
     model, vocab = load_model()
 
-    test_texts = [
-        "I feel restless",  # anxiety
-        "Beautiful morning",  # normal
-        "I did not ask to be born",  # depression
-        "This exam is stressing me out",  # stress
-    ]
+    # if not provided, use some default texts
+    if not test_texts:
+        test_texts = [
+            "I feel restless",  # anxiety
+            "Beautiful morning",  # normal
+            "I did not ask to be born",  # depression
+            "This exam is stressing me out",  # stress
+        ]
 
-    print("Demo predictions:")
+    print("LSTM demo predictions:")
     for text in test_texts:
         prediction, probs = predict_sentiment(text, model, vocab)
         print(f"\nText: '{text}'")
