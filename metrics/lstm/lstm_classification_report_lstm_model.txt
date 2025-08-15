@@ -1,5 +1,10 @@
-LSTM Test Classification Report
-========================================
+LSTM Model Evaluation Results
+==================================================
+
+Validation Accuracy: 0.7756
+Test Accuracy: 0.7709
+
+Classification Report:
                       precision    recall  f1-score   support
 
              Anxiety       0.77      0.86      0.81       384

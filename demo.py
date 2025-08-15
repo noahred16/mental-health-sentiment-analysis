@@ -39,7 +39,7 @@ def compare_model_predictions():
         return
 
     print(
-        f"Comparing {len(available_models)} available models: {', '.join([name for name, _ in available_models])}"
+        f"\nComparing {len(available_models)} available models: {', '.join([name for name, _ in available_models])}"
     )
 
     # Create comparison table

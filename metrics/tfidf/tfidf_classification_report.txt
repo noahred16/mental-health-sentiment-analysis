@@ -1,5 +1,10 @@
-TF-IDF Test Classification Report
-========================================
+TF-IDF Model Evaluation Results
+==================================================
+
+Validation Accuracy: 0.7598
+Test Accuracy: 0.7656
+
+Classification Report:
                       precision    recall  f1-score   support
 
              Anxiety       0.81      0.76      0.78       384

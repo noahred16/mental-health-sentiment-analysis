@@ -1,5 +1,10 @@
-RoBERTa Test Classification Report
-========================================
+RoBERTa Model Evaluation Results
+==================================================
+
+Validation Accuracy: 0.7851
+Test Accuracy: 0.7804
+
+Classification Report:
                       precision    recall  f1-score   support
 
              Anxiety       0.84      0.85      0.85       384
