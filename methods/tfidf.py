@@ -118,40 +118,50 @@ def evaluate(grid, label_mapping, X_val, y_val, X_test, y_test):
 # utils.preprocessor.preprocess_text
 
 
-def demo(test_texts=None):
-    """Demo function using saved TF-IDF model"""
+def demo(test_texts=None, expected_labels=None):
+    """Demo function using saved TF-IDF model - returns results instead of printing"""
     try:
         grid, label_mapping = load_model()
     except FileNotFoundError:
-        print("No trained model found. Please run training first.")
-        return
-
-    # if not provided, use some default texts
+        return None
+    
+    # if not provided, use some default texts with expected labels
     if not test_texts:
         test_texts = [
             "I feel restless",  # anxiety
             "Beautiful morning",  # normal
             "I did not ask to be born",  # depression
-            "This exam is stressing me out",  # stress
+            "I have a so much work to do",  # stress
         ]
-
-    print("TF-IDF demo predictions:")
-    for text in test_texts:
+        expected_labels = ["Anxiety", "Normal", "Depression", "Stress"]
+    
+    results = []
+    for i, text in enumerate(test_texts):
         # Preprocess the text using the same preprocessing as training data
         processed_text = utils.preprocessor.preprocess_text(text)
-
+        
         # Get prediction and probabilities
         prediction = grid.best_estimator_.predict([processed_text])[0]
         probabilities = grid.best_estimator_.predict_proba([processed_text])[0]
-
-        # The prediction is already a string label, no need to convert
-        print(f"\nText: '{text}'")
-        print(f"Predicted: {prediction}")
-        print("Probabilities:")
-        # Get class names from the model
+        
+        # Get class names from the model and sort probabilities
         class_names = grid.best_estimator_.classes_
-        for class_name, prob in zip(class_names, probabilities):
-            print(f"  {class_name}: {prob:.4f}")
+        prob_dict = dict(zip(class_names, probabilities))
+        sorted_probs = sorted(prob_dict.items(), key=lambda x: x[1], reverse=True)
+        
+        # Determine if prediction is correct
+        expected = expected_labels[i] if expected_labels and i < len(expected_labels) else None
+        is_correct = prediction == expected if expected else None
+        
+        results.append({
+            "text": text,
+            "prediction": prediction,
+            "expected": expected,
+            "correct": is_correct,
+            "probabilities": sorted_probs
+        })
+    
+    return results
 
 
 def load_model(checkpoint_path="saved_models/tfidf_model.pkl"):

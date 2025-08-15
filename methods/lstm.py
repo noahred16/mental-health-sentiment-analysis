@@ -218,7 +218,8 @@ def load_model(model_path="saved_models/lstm_model.pth"):
     # Add current module to sys.modules to handle pickle loading
     sys.modules["__main__"] = sys.modules[__name__]
 
-    checkpoint = torch.load(model_path, weights_only=False)
+    # Load checkpoint with CPU mapping to handle CUDA/CPU compatibility
+    checkpoint = torch.load(model_path, weights_only=False, map_location=device)
     vocab = checkpoint["vocab"]
     params = checkpoint["model_params"]
 
@@ -441,11 +442,14 @@ def predict_sentiment(text, model, vocab):
     return prediction, probabilities
 
 
-def demo(test_texts=None):
-    """Demo function using saved model"""
-    model, vocab = load_model()
+def demo(test_texts=None, expected_labels=None):
+    """Demo function using saved model - returns results instead of printing"""
+    try:
+        model, vocab = load_model()
+    except:
+        return None
 
-    # if not provided, use some default texts
+    # if not provided, use some default texts with expected labels
     if not test_texts:
         test_texts = [
             "I feel restless",  # anxiety
@@ -453,15 +457,29 @@ def demo(test_texts=None):
             "I did not ask to be born",  # depression
             "This exam is stressing me out",  # stress
         ]
+        expected_labels = ["Anxiety", "Normal", "Depression", "Stress"]
 
-    print("LSTM demo predictions:")
-    for text in test_texts:
+    results = []
+    for i, text in enumerate(test_texts):
         prediction, probs = predict_sentiment(text, model, vocab)
-        print(f"\nText: '{text}'")
-        print(f"Predicted: {prediction}")
-        print("Probabilities:")
-        for cls, prob in zip(vocab.label_encoder.keys(), probs):
-            print(f"  {cls}: {prob:.4f}")
+        
+        # Create probability dictionary and sort by value
+        prob_dict = dict(zip(vocab.label_encoder.keys(), probs))
+        sorted_probs = sorted(prob_dict.items(), key=lambda x: x[1], reverse=True)
+        
+        # Determine if prediction is correct
+        expected = expected_labels[i] if expected_labels and i < len(expected_labels) else None
+        is_correct = prediction == expected if expected else None
+        
+        results.append({
+            "text": text,
+            "prediction": prediction,
+            "expected": expected,
+            "correct": is_correct,
+            "probabilities": sorted_probs
+        })
+    
+    return results
 
 
 if __name__ == "__main__":
