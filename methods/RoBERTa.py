@@ -262,7 +262,7 @@ def load_model(checkpoint_path="saved_models/roberta_model.pth"):
     if not os.path.exists(checkpoint_path):
         raise FileNotFoundError(f"No model found at {checkpoint_path}")
 
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
 
     # Reload tokenizer from HuggingFace (not saved to reduce file size)
     tokenizer = RobertaTokenizer.from_pretrained(checkpoint["model_config"]["model_name"])
