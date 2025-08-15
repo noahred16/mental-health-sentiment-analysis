@@ -75,9 +75,27 @@ def train_roberta_model(checkpoint_path="saved_models/roberta_model.pth"):
     df["label"] = label_encoder.fit_transform(df["status"])
 
     # Use standardized 70/20/10 split with preprocessed text for consistency
-    train_texts, val_texts, test_texts, train_labels, val_labels, test_labels = (
-        utils.get_standard_split(df)
+    # But we need to get the encoded labels, not the string labels
+    from sklearn.model_selection import train_test_split
+
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        df["processed_text"].values,
+        df["label"].values,  # Use encoded labels
+        test_size=0.3,  # 20% val + 10% test
+        random_state=42,
+        stratify=df["label"].values,
     )
+
+    X_val, X_test, y_val, y_test = train_test_split(
+        X_temp,
+        y_temp,
+        test_size=0.333,  # 10% of total (0.333 * 0.3 = 0.1)
+        random_state=42,
+        stratify=y_temp,
+    )
+
+    train_texts, val_texts, test_texts = X_train, X_val, X_test
+    train_labels, val_labels, test_labels = y_train, y_val, y_test
 
     print(
         f"Train size: {len(train_texts)}, Validation size: {len(val_texts)}, Test size: {len(test_texts)}"
@@ -163,10 +181,25 @@ def evaluate_roberta_model(model, tokenizer, label_encoder):
     # Use same label encoding
     df["label"] = label_encoder.transform(df["status"])
 
-    # Use same standardized split as training
-    train_texts, val_texts, test_texts, train_labels, val_labels, test_labels = (
-        utils.get_standard_split(df)
+    # Use same standardized split as training, but with encoded labels
+    X_train, X_temp, y_train, y_temp = train_test_split(
+        df["processed_text"].values,
+        df["label"].values,  # Use encoded labels
+        test_size=0.3,
+        random_state=42,
+        stratify=df["label"].values,
     )
+
+    X_val, X_test, y_val, y_test = train_test_split(
+        X_temp,
+        y_temp,
+        test_size=0.333,
+        random_state=42,
+        stratify=y_temp,
+    )
+
+    train_texts, val_texts, test_texts = X_train, X_val, X_test
+    train_labels, val_labels, test_labels = y_train, y_val, y_test
 
     # Prepare test dataset
     test_dataset = tokenize_data(test_texts, test_labels, tokenizer)
