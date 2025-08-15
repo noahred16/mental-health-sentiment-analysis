@@ -384,28 +384,59 @@ def evaluate_model(model_path, model_name="lstm"):
 
     X_train, X_val, X_test, y_train, y_val, y_test = utils.get_standard_split(df)
 
+    # Create validation and test datasets
+    val_dataset = MentalHealthDataset(X_val, y_val, vocab)
     test_dataset = MentalHealthDataset(X_test, y_test, vocab)
+    val_loader = DataLoader(
+        val_dataset, batch_size=8, shuffle=False, collate_fn=collate_fn
+    )
     test_loader = DataLoader(
         test_dataset, batch_size=8, shuffle=False, collate_fn=collate_fn
     )
     criterion = nn.CrossEntropyLoss()
 
+    # Evaluate on validation set
+    _, val_acc, val_predictions, val_true_labels = evaluate(
+        model, val_loader, criterion, device
+    )
+
+    # Evaluate on test set
     _, test_acc, predictions, true_labels = evaluate(
         model, test_loader, criterion, device
     )
 
     status_labels = list(vocab.label_encoder.keys())
 
-    # Classification report
+    # Validation confusion matrix
+    cm_val = confusion_matrix(val_true_labels, val_predictions)
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(
+        cm_val,
+        annot=True,
+        fmt="d",
+        cmap="Blues",
+        xticklabels=status_labels,
+        yticklabels=status_labels,
+    )
+    plt.title("LSTM Validation Confusion Matrix")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.tight_layout()
+    plt.savefig(f"metrics/lstm/lstm_validation_confusion_matrix_{model_name}.png")
+    plt.close()
+
+    # Test classification report
     report = classification_report(true_labels, predictions, target_names=status_labels)
-    print("\nClassification Report:")
+    print(f"\nValidation Accuracy: {val_acc:.4f}")
+    print(f"Test Accuracy: {test_acc:.4f}")
+    print("\nTest Classification Report:")
     print(report)
 
     # Save classification report to file
     with open(f"metrics/lstm/lstm_classification_report_{model_name}.txt", "w") as f:
         f.write(report)
 
-    # Confusion matrix
+    # Test confusion matrix
     cm = confusion_matrix(true_labels, predictions)
     plt.figure(figsize=(10, 8))
     sns.heatmap(
@@ -416,15 +447,17 @@ def evaluate_model(model_path, model_name="lstm"):
         xticklabels=status_labels,
         yticklabels=status_labels,
     )
-    plt.title("Confusion Matrix")
+    plt.title("LSTM Test Confusion Matrix")
     plt.xlabel("Predicted")
     plt.ylabel("Actual")
     plt.tight_layout()
     plt.savefig("metrics/lstm/lstm_test_confusion_matrix.png")
     plt.close()
 
-    print(f"\nTest Accuracy from evaluate_model: {test_acc:.4f}")
-    print("Confusion matrix saved to metrics/lstm/lstm_test_confusion_matrix.png")
+    print(
+        f"Validation confusion matrix saved to metrics/lstm/lstm_validation_confusion_matrix_{model_name}.png"
+    )
+    print("Test confusion matrix saved to metrics/lstm/lstm_test_confusion_matrix.png")
 
     return model, vocab
 

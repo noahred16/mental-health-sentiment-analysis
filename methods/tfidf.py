@@ -83,7 +83,7 @@ def evaluate(grid, label_mapping, X_val, y_val, X_test, y_test):
         cm_val,
         annot=True,
         fmt="d",
-        cmap="Purples",
+        cmap="Blues",
         xticklabels=[label_mapping[i] for i in sorted(label_mapping.keys())],
         yticklabels=[label_mapping[i] for i in sorted(label_mapping.keys())],
     )
@@ -119,7 +119,7 @@ def evaluate(grid, label_mapping, X_val, y_val, X_test, y_test):
         cm_test,
         annot=True,
         fmt="d",
-        cmap="Purples",
+        cmap="Blues",
         xticklabels=list(label_mapping.values()),
         yticklabels=list(label_mapping.values()),
     )
