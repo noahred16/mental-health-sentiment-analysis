@@ -24,7 +24,7 @@ Deepashree Srinivasa Rao Rannore
 ├── saved_models
 │   ├── lstm_model.pkl
 │   ├── tfidf_model.pkl
-│   └── roberta_model.pth
+│   └── roberta_model.pth (too large to upload)
 ├── tests
 │   ├── test_methods.pkl
 │   └── test_utils.py
@@ -75,4 +75,5 @@ We implemented three methods for sentiment analysis:
 - The demo script loads existing weights if available
 - Delete checkpoint files to retrain models from scratch
 - Training generates evaluation metrics in `metrics/` folder
+- The RoBERTa model file is too large to upload, please train it locally using the provided script (`python -m methods.RoBERTa`)
 

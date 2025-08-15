@@ -201,12 +201,30 @@ def evaluate_roberta_model(model, tokenizer, label_encoder):
     train_texts, val_texts, test_texts = X_train, X_val, X_test
     train_labels, val_labels, test_labels = y_train, y_val, y_test
 
-    # Prepare test dataset
+    # Prepare validation and test datasets
+    val_dataset = tokenize_data(val_texts, val_labels, tokenizer)
     test_dataset = tokenize_data(test_texts, test_labels, tokenizer)
+    val_loader = DataLoader(val_dataset, batch_size=16)
     test_loader = DataLoader(test_dataset, batch_size=16)
 
-    # Evaluation
+    # Evaluation on validation set
     model.eval()
+    val_preds = []
+    val_labels_list = []
+
+    with torch.no_grad():
+        for batch in val_loader:
+            batch = {k: v.to(device) for k, v in batch.items()}
+            outputs = model(**batch)
+            logits = outputs.logits
+            preds = torch.argmax(logits, dim=-1)
+            val_preds.extend(preds.cpu().numpy())
+            val_labels_list.extend(batch["labels"].cpu().numpy())
+
+    val_accuracy = (np.array(val_preds) == np.array(val_labels_list)).mean()
+    print(f"Validation Accuracy: {val_accuracy:.4f}")
+
+    # Evaluation on test set
     all_preds = []
     all_labels = []
 
@@ -219,18 +237,24 @@ def evaluate_roberta_model(model, tokenizer, label_encoder):
             all_preds.extend(preds.cpu().numpy())
             all_labels.extend(batch["labels"].cpu().numpy())
 
+    test_accuracy = (np.array(all_preds) == np.array(all_labels)).mean()
+
     # Generate and save classification report
     report = classification_report(
         all_labels, all_preds, target_names=label_encoder.classes_
     )
+    print(f"\nTest Accuracy: {test_accuracy:.4f}")
     print("\nTest Classification Report:")
     print(report)
 
-    # Save classification report to file
+    # Save classification report with accuracy to file
     os.makedirs("metrics/roberta", exist_ok=True)
     with open("metrics/roberta/roberta_classification_report.txt", "w") as f:
-        f.write("RoBERTa Test Classification Report\n")
-        f.write("=" * 40 + "\n")
+        f.write("RoBERTa Model Evaluation Results\n")
+        f.write("=" * 50 + "\n\n")
+        f.write(f"Validation Accuracy: {val_accuracy:.4f}\n")
+        f.write(f"Test Accuracy: {test_accuracy:.4f}\n\n")
+        f.write("Classification Report:\n")
         f.write(report)
 
     # Save confusion matrix

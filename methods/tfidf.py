@@ -73,6 +73,8 @@ def train_tfidf_model(X_train, y_train, checkpoint_path="saved_models/tfidf_mode
 def evaluate(grid, label_mapping, X_val, y_val, X_test, y_test):
     # Evaluation on validation set
     y_val_pred = grid.best_estimator_.predict(X_val)
+    val_accuracy = (y_val_pred == y_val).mean()
+    print(f"Validation Accuracy: {val_accuracy:.4f}")
     print(" Validation Set Performance:")
     print(classification_report(y_val, y_val_pred, target_names=label_mapping.values()))
 
@@ -99,17 +101,22 @@ def evaluate(grid, label_mapping, X_val, y_val, X_test, y_test):
     # Test set evaluation
     best_model = grid.best_estimator_
     y_pred = best_model.predict(X_test)
+    test_accuracy = (y_pred == y_test).mean()
 
     # Generate and save classification report
     report = classification_report(y_test, y_pred, target_names=label_mapping.values())
+    print(f"\nTest Accuracy: {test_accuracy:.4f}")
     print("\nTest Classification Report:")
     print(report)
 
-    # Save classification report to file
+    # Save classification report with accuracy to file
     os.makedirs("metrics/tfidf", exist_ok=True)
     with open("metrics/tfidf/tfidf_classification_report.txt", "w") as f:
-        f.write("TF-IDF Test Classification Report\n")
-        f.write("=" * 40 + "\n")
+        f.write("TF-IDF Model Evaluation Results\n")
+        f.write("=" * 50 + "\n\n")
+        f.write(f"Validation Accuracy: {val_accuracy:.4f}\n")
+        f.write(f"Test Accuracy: {test_accuracy:.4f}\n\n")
+        f.write("Classification Report:\n")
         f.write(report)
 
     # Test confusion matrix

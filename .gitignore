@@ -2,7 +2,7 @@
 saved_models/*
 !saved_models/lstm_model.pth
 !saved_models/tfidf_model.pkl
-!saved_models/roberta_model.pth
+# !saved_models/roberta_model.pth # too large to upload, please train locally
 # add your main model here. we want to be intentional with the ones we save. 
 
 # Byte-compiled / optimized / DLL files
