@@ -1,13 +1,12 @@
 # Mental Health Sentiment Analysis - CS6620 NLP Course Project
-Description
+This repo has the code for the sentiment analysis of mental health-related text data.  
 
 **Team members:**  
+Rajkesh Prakash Shetty  
 Noah Smith  
 Deepashree Srinivasa Rao Rannore  
-Rajkesh Prakash Shetty  
 
-
-## Files
+## Main Files
 ```
 .
 ├── README.md
@@ -44,17 +43,21 @@ Rajkesh Prakash Shetty
 ## Methods
 We implemented three methods for sentiment analysis:
 
-### LSTM-based Neural Network
-- File: `methods/lstm.py`
-- Description: This method uses an LSTM-based neural network to classify the sentiment of mental health
-- Training: `python -m methods.lstm`
-- Model Saving: The trained model is saved as `saved_models/lstm_model.pth`
-
 ### TF-IDF with Classical ML Classifiers
 - File: `methods/tfidf.py`
 - Description: This method uses TF-IDF vectorization combined with classical machine learning classifiers like Logistic Regression, SVM, etc.
 - Training: `python -m methods.tfidf`
 - Model Saving: The trained models are saved in the `saved_models/` directory.
 
+### LSTM-based Neural Network
+- File: `methods/lstm.py`
+- Description: This method uses an LSTM-based neural network to classify the sentiment of mental health
+- Training: `python -m methods.lstm`
+- Model Saving: The trained model is saved as `saved_models/lstm_model.pth`
 
+### RoBERTa-based Transformer Model
+- File: `methods/RoBERTa.py`
+- Description: This method uses a pre-trained RoBERTa transformer model fine-tuned for sentiment analysis.
+- Training: `python -m methods.RoBERTa`
+- Model Saving: The trained model is saved as `saved_models/roberta_model.pth
 
