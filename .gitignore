@@ -1,5 +1,4 @@
 # data directory
-data/
 saved_models/*
 !saved_models/lstm_model.pth
 !saved_models/tfidf_model.pkl

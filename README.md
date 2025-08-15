@@ -29,15 +29,20 @@ Deepashree Srinivasa Rao Rannore
 └── utils.py
 ```
 
-## Setup
-- `pip install -r requirements.txt`
-- `python demo.py`
+
+### Setup
+1. Download/clone the repository
+2. Navigate to the project root directory, mental-health-sentiment-analysis
+3. Install dependencies: `pip install -r requirements.txt`
+
+A demo script (`demo.py`) has been provided in order to compare the results of all 3 trained models. 
 
 ## Commands
 - `python demo.py`: Run the demo script to see the results of the pre-trained models.
 - `pytest`: Run the tests.
-- `python -m methods.lstm`: Run the LSTM model training and evaluation.
 - `python -m methods.tfidf`: Run the TF-IDF model training and evaluation.
+- `python -m methods.lstm`: Run the LSTM model training and evaluation.
+- `python -m methods.RoBERTa`: Run the RoBERTa model training and evaluation.
 
 
 ## Methods
@@ -59,5 +64,13 @@ We implemented three methods for sentiment analysis:
 - File: `methods/RoBERTa.py`
 - Description: This method uses a pre-trained RoBERTa transformer model fine-tuned for sentiment analysis.
 - Training: `python -m methods.RoBERTa`
-- Model Saving: The trained model is saved as `saved_models/roberta_model.pth
+- Model Saving: The trained model is saved as `saved_models/roberta_model.pth`
+
+
+## Notes
+- The dataset is included with the code, no separate download needed.
+- Trained models are automatically saved to `saved_models/` folder
+- The demo script loads existing weights if available
+- Delete checkpoint files to retrain models from scratch
+- Training generates evaluation metrics in `metrics/` folder
 
